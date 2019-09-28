@@ -8,7 +8,7 @@
 use futures::{future::BoxFuture, prelude::*, stream, task::Spawn};
 use futures_tokio_compat::Compat;
 use http_service::{Body, HttpService};
-use hyper::server::{Builder as HyperBuilder, Server as HyperServer};
+use hyper::server::{Builder as HyperBuilder, Server as HyperServer, accept as hyper_accept};
 #[cfg(feature = "runtime")]
 use std::net::SocketAddr;
 use std::{
@@ -125,7 +125,7 @@ where
 #[allow(clippy::type_complexity)] // single-use type with many compat layers
 pub struct Server<I: TryStream, S, Sp> {
     inner:
-        HyperServer<stream::MapOk<I, fn(I::Ok) -> Compat<I::Ok>>, WrapHttpService<S>, Compat<Sp>>,
+        HyperServer<hyper_accept::Accept, WrapHttpService<S>, Compat<Sp>>,
 }
 
 impl<I: TryStream, S, Sp> std::fmt::Debug for Server<I, S, Sp> {
@@ -150,7 +150,7 @@ impl<I: TryStream> Server<I, (), ()> {
     /// Starts a [`Builder`] with the provided incoming stream.
     pub fn builder(incoming: I) -> Builder<I, ()> {
         Builder {
-            inner: HyperServer::builder(incoming.map_ok(Compat::new as _))
+            inner: HyperServer::builder(hyper_accept::from_stream(incoming.map_ok(Compat::new as _)))
                 .executor(Compat::new(())),
         }
     }
